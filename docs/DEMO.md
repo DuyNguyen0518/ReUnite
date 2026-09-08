@@ -275,8 +275,8 @@ Everyone else sees the words, reconstructed locally:
 
 > The wire format has eight code points (`status.rs`), but commit `6eba821` cut the
 > displayed table to the three above. Whether three or seven is the right number is an
-> open product question - see `phase/phase-2a-build-and-display-integrity.md`. The codes
-> not in the table still travel and still decode; they just have no name to type.
+> open product question - see [`HANDOVER.md`](HANDOVER.md) §16.6. The codes not in the
+> table still travel and still decode; they just have no name to type.
 
 The status also rides every `Hello`, so a node that arrives ten minutes later still learns
 it instead of having missed the one broadcast.

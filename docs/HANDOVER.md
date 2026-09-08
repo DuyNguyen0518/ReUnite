@@ -1,8 +1,12 @@
 # ReUnite — Takeover Guide
 
-*Written 2026-09-08 by reading every file in the repository and running every check it has.
-Everything marked "verified" below was actually executed on this machine; everything else is
-sourced from the code or the existing docs and labelled as such.*
+*Written 2026-09-08, revised 2026-09-09, by reading every file in the repository and running
+every check it has. Everything marked "verified" below was actually executed on this machine;
+everything else is sourced from the code or the existing docs and labelled as such.*
+
+*The 2026-09-09 revision folded in a cleanup pass: the Dart suite was repaired, clippy taken to
+zero, and the documentation reconciled with the code. Items struck through in §16 were fixed in
+that pass; §13 gained the concurrency note below.*
 
 ---
 
@@ -32,6 +36,12 @@ have them.
 
 This was built at hackathon pace. That matters for how you present it (Part IV) and for what
 you should expect to find (Part III).
+
+> **The `phase/` directory was removed in `9da2b70`.** It held the build plan — one file per
+> phase — plus the deviations register and the hardware-verification ladder. The plan itself is
+> spent history, but two things in it were not, so they are reproduced in this document: the
+> **invariants table** (§17) and the **verification ladder** (Appendix B). Everything else is
+> recoverable with `git show ac2d337:phase/<file>`.
 
 **Who wrote what** — this is the most important thing to have straight before you put it on a
 profile, and it is good news for you:
@@ -107,7 +117,6 @@ mobile/
 web/                        static marketing site + a simulated Sydney-flood signal map
 docs/                       README (index) · ARCHITECTURE · SETUP · MOBILE · DEMO · JOINING
                             · HANDOVER (this file)
-phase/                      the build plan: phases 1, 2, 2A–2E, 3, plus a deviations register
 scripts/                    check.sh · build_ffi.sh · ble_gateway.py · autostart/install.sh
 plan.md                     the original product/architecture plan
 ```
@@ -346,12 +355,12 @@ Ranked by what I'd fix first. Items 1–4 are the project's real frontier; the s
 already documented candidly in `docs/ARCHITECTURE.md`, which is to the original author's credit.
 
 1. ~~**The Dart test suite is red.**~~ **Fixed** — see §15.
-2. **Bluetooth has never been run on real hardware.** Everything in phases 2C and 2D was
-   established by *reading code*. `external_transport.rs` proves the layers above the radio are
+2. **Bluetooth has never been run on real hardware.** Every claim about BLE behaviour in this
+   project was established by *reading code*. `external_transport.rs` proves the layers above the radio are
    transport-agnostic — it is a pair of in-memory queues and touches no radio.
-   `phase/phase-2e-hardware-verification.md` is an excellent stop-at-first-failure ladder with a
-   diagnosis table; follow it exactly when you get two phones. **This is the single highest-value
-   thing you can do to this project.**
+   **Appendix B** is a stop-at-first-failure ladder with a diagnosis table; follow it exactly
+   when you get two phones. **This is the single highest-value thing you can do to this
+   project.**
 3. **The mesh stops when the app leaves the screen.** No Android foreground service, no iOS
    state restoration. This is the largest gap between this and something usable in a real
    emergency.
@@ -374,8 +383,8 @@ already documented candidly in `docs/ARCHITECTURE.md`, which is to the original 
    cut, so the tool's own help was instructing you to type something it refuses. **Still open,
    and it is a product decision, not a cleanup:** three displayed codes or seven? Five constants
    (`SUPPLIES`, `TRAPPED`, `MOVING`, `SHELTER`, and the `MEDICAL`/`sos` naming collision) are
-   dead weight until someone answers. `phase/phase-2a-build-and-display-integrity.md` flags it
-   as an open question for the product owner — which is now you.
+   dead weight until someone answers. It was flagged as an open question for the product owner
+   — which is now you.
 7. ~~**Docs cite a `proposal.md` that isn't in the repo.**~~ **Fixed** — the dead citation is gone; the requirement it cited still stands in the text.
 8. **`meshcore` is not `no_std`** despite `plan.md` requiring it. `beacon.rs`, `status.rs` and
    `duty.rs` are written std-free to keep the eventual split cheap; everything else uses `tokio`,
@@ -393,7 +402,22 @@ already documented candidly in `docs/ARCHITECTURE.md`, which is to the original 
     branches still exist on `upstream`, which is the right place for them. Two commits are still
     named "temp 1" and "Edit something here", but they are merged history and not worth a rewrite.
 
-12. **No `LICENSE` file, and three different answers about the licence.** `README.md` says
+12. **The Dart suite cannot be run twice at once against one working tree.** Two concurrent
+    `flutter test` invocations race on the shared `mobile/.dart_tool` build directory; one dies
+    with *"the file was deleted or moved while the tool was running. Try running `flutter
+    clean`"*, and — worse — the other can execute a **stale compilation snapshot**, reporting
+    results for code that is no longer on disk. That is not hypothetical: it happened during the
+    2026-09-09 cleanup and reproduced a fixed suite as still-failing, which cost an hour of
+    chasing a bug that had already been repaired.
+
+    Verified by running two suites simultaneously: one exits 1 on the build directory, the other
+    passes 24/24. **It is not the mesh ports** — `app_test.dart` binds 47651 and
+    `peers_test.dart` 47652, and those are distinct and never exchange datagrams. Nothing needs
+    fixing in the tests. What needs fixing is the habit: **run the suite once, sequentially, and
+    when you add CI (§19) do not let two jobs share a checkout.** If you ever see a test result
+    that contradicts the code in front of you, re-run it alone before believing it.
+
+13. **No `LICENSE` file, and three different answers about the licence.** `README.md` says
     "MIT / Apache 2.0", `Cargo.toml` says `MIT`, and there is no licence file at all — so
     legally the repository is "all rights reserved" regardless of what the README claims. This
     is a decision for you and your teammates, not a cleanup: pick one, add the file, and make
@@ -402,20 +426,24 @@ already documented candidly in `docs/ARCHITECTURE.md`, which is to the original 
 
 ### 17. Invariants — do not "simplify" these away
 
-`phase/phase-2e-hardware-verification.md` has the full table; these are the ones a well-meaning
-refactor is most likely to break:
+Each of these was a deliberate decision with a failure mode behind it. A future change that
+looks like a cleanup can undo one without noticing. This table is reproduced in full here
+because its original home, `phase/phase-2e-hardware-verification.md`, was deleted in `9da2b70`.
 
-- SOS and status live **inside** the Ed25519 signature of `Hello`; `ttl` and `path` live outside.
-- An unsigned advertisement may **never** set peer state.
-- A zone tie resolves to **unsafe**; a non-`safe` byte decodes as unsafe.
-- Zone vote counts travel separately, never blended.
-- **No automatic, unattended safety verdict anywhere** — an earlier build auto-reported "safe"
-  from GPS every two minutes, manufacturing false consensus.
-- Only a state the platform *actually reported* may accuse the radio. `unknown` ≠ "Bluetooth is
-  off". Guessing here is the bug that kept the iPhone off the mesh from the first commit.
-- One dead radio never takes down the node.
-- Never back off the duty cycle during an SOS.
-- Compass/Grid is the **default** map view.
+| Invariant | Why | Where |
+| :--- | :--- | :--- |
+| SOS and status live **inside** the Ed25519 signature of `Hello` | So no relay can clear someone's SOS or forge a status on their behalf | `packet.rs`, `node.rs` |
+| `ttl` and `path` sit **outside** the signature | Every relay must rewrite them and nothing else | `packet.rs` |
+| An unsigned advertisement may never set peer state | Otherwise a forged SOS costs one BLE radio | `beacon.rs` |
+| A zone tie resolves to **unsafe** | A contested area is not a safe area | `zones.rs` `Zone::verdict` |
+| Anything that is not an explicit `safe` byte decodes as unsafe | A corrupt byte must never clear a hazard | `zones.rs` `Verdict::from_wire` |
+| Both zone vote counts travel separately, never blended | "5 say safe" ≠ "5 say safe, 4 say unsafe" | `zones.rs`, `ZoneDto` |
+| No automatic, unattended safety verdict anywhere | An earlier build auto-reported "safe" from GPS every 2 minutes, manufacturing false consensus | `mesh_service.dart` `_autoShareLocation` |
+| Only a state the platform actually reported may accuse the radio | `unknown` ≠ "Bluetooth is off"; the previous build sent people to check a correct setting | `mesh_service.dart` `bleErrorForRadioState`, tested |
+| One dead radio never takes down the node | A phone with Bluetooth off must still mesh over Wi-Fi | `transport/multi.rs` |
+| Never back off the duty cycle during an SOS | That is the moment to spend the battery | `duty.rs`, tested |
+| Compass/Grid is the **default** map view | A phone in a disaster has no tiles and no internet | `map_screen.dart` tab order, tested |
+| The re-gossip ring is bounded at 16, and eviction does not withdraw the report | Other nodes are still counting that vote | `zones.rs` `record_own` |
 
 ### 18. Commands you'll use
 
@@ -448,11 +476,11 @@ startup-error screen. `scripts/build_ffi.sh` prints this reminder; `docs/MOBILE.
 
 | Day | Do this |
 |---|---|
-| 1 | Read `docs/ARCHITECTURE.md`, then `phase/README.md` (especially the deviations register), then `phase/phase-2e-hardware-verification.md`. Run `./scripts/check.sh`. |
+| 1 | Read `docs/ARCHITECTURE.md`, then §16–§17 and Appendix B of this document. Run `./scripts/check.sh`. |
 | 1 | ~~Fix the `MissingPluginException`~~ — already done; the suite is green. Verify with `./scripts/check.sh`. |
 | 2 | Run `docs/DEMO.md` end to end on one laptop — three nodes, multi-hop relay, a private network the relay can't read, kick voting, ghosting, zones. This is the fastest way to *feel* the protocol. |
-| 3 | Add CI (GitHub Actions: `cargo test`, `cargo build --release`, `flutter analyze`, `flutter test`). The green-suite claim went stale in a merge; CI is why that stops happening. |
-| 4–5 | **Two phones.** Walk phase 2E's ladder rung by rung. Whatever it tells you, write the observations into that file — the acceptance criteria explicitly require it. |
+| 3 | Add CI (GitHub Actions: `cargo test`, `cargo build --release`, `cargo clippy -- -D warnings`, `flutter analyze --fatal-warnings`, `flutter test`). The green-suite claim went stale in a merge; CI is why that stops happening. **Give the Dart job its own checkout and never run two `flutter test` jobs against one working tree** — see §16.12. |
+| 4–5 | **Two phones.** Walk the ladder in Appendix B rung by rung. Write down what you actually observe, whatever it is — a measured failure is worth more than an untested assumption. |
 | Then | Background execution (Android foreground service + iOS state restoration). It's the difference between a demo and a usable tool. |
 
 Then, and only then, Beacon v1 on the air — and read the security constraint in phase 2C.4
@@ -500,9 +528,10 @@ repo you link is under your own name. Keep the upstream link and the team credit
    screen capture from `docs/DEMO.md`. If you get two phones, a video of a real SOS crossing
    Bluetooth in airplane mode is worth more than everything else on this list combined.
 4. A **status section** in the README, above the fold: what's built and tested, what's built and
-   unverified, what's not built. You already have this material — it's `phase/README.md`. Moving
-   an honest status table to the front converts your biggest weakness (nothing has run on a
-   radio) into your strongest signal (you know exactly what you have and haven't proven).
+   unverified, what's not built. You already have this material — it's §15 and §16 of this
+   document. Moving an honest status table to the front converts your biggest weakness (nothing
+   has run on a radio) into your strongest signal (you know exactly what you have and haven't
+   proven). A first version is already in the README's Testing section.
 5. An **architecture diagram**. One image: UI shells → core → transport trait → three radios.
    `docs/ARCHITECTURE.md` has the ASCII version; render it properly.
 6. Trim the README's install guide. The current one is a step-by-step for a non-technical user
@@ -514,12 +543,14 @@ repo you link is under your own name. Keep the upstream link and the team credit
 
 - `docs/ARCHITECTURE.md` and its **"What this does not protect against"** section. Publishing
   your own threat model is rare in junior portfolios and reads as senior.
-- The **deviations register** in `phase/README.md`. Nine documented cases of "the plan said X,
-  reality is Y, here's why and who owns it" is a project-management artefact most candidates
-  can't produce.
-- `phase/phase-2e-hardware-verification.md`. A handover document with a stop-at-first-failure
-  ladder and a diagnosis table, written for a stranger arriving cold, is a genuinely unusual
-  thing to have written.
+- **Appendix B** of this document — a verification ladder with a diagnosis table, written for a
+  stranger arriving cold. A handover artefact like this is a genuinely unusual thing for a
+  candidate to have written, and it is evidence of exactly the discipline the project's
+  weakest area needs.
+- The **deviations register** — nine documented cases of "the plan said X, reality is Y, here's
+  why and who owns it" — was in the deleted `phase/README.md`. It is a strong
+  project-management artefact and worth reviving in some form; recover it with
+  `git show ac2d337:phase/README.md`.
 
 **Be explicit about credit.** One line in the README: *"Team project. I designed and built the
 Rust protocol core, the FFI bridge, the Flutter–core integration and the native BLE transport;
@@ -561,7 +592,7 @@ They will not evaluate the code. What helps here is the tagline, the demo GIF, a
 
 | Their question | Your answer |
 |---|---|
-| "Has this ever run on real hardware?" | "The Rust core and the UI are tested end to end over an in-memory transport, 38 + 24 tests. Bluetooth between two phones has never been run — I wrote the verification ladder for it in `phase-2e` and it's the next thing I'd do. Everything I claim about BLE behaviour is inspection, and I've labelled it as such in the repo." **Never bluff this one.** The honest answer is stronger than the bluff, and the repo already tells the truth in writing. |
+| "Has this ever run on real hardware?" | "The Rust core and the UI are tested end to end over an in-memory transport, 38 + 24 tests. Bluetooth between two phones has never been run — I wrote the verification ladder for it and it's the next thing I'd do. Everything I claim about BLE behaviour is inspection, and I've labelled it as such in the repo." **Never bluff this one.** The honest answer is stronger than the bluff, and the repo already tells the truth in writing. |
 | "Three days and 14k lines — how much of this is yours, and how much is generated?" | Expect this. Answer directly, name the six commits, and be ready to explain any file on screen. The best defence is being able to derive the 27-byte beacon budget or the kick threshold live. If AI tooling was involved, say so plainly — that's now unremarkable; being unable to explain your own code is what isn't. |
 | "Why is this Wi-Fi if it's a Bluetooth mesh?" | §12. The `btleplug` peripheral-role answer is a good one and shows you hit a real platform limit and routed around it without abandoning the abstraction. |
 | "What would you do differently?" | Have three ready. Mine: hardware-in-the-loop from day one instead of at the end; CI from the first commit (the test suite went red in a merge and nobody noticed); and either build SQLite properly or don't ship a `DatabaseStore` facade that implies it. |
@@ -571,9 +602,10 @@ They will not evaluate the code. What helps here is the tagline, the demo GIF, a
 - **Nothing has been verified on a radio.** Unavoidable — but you convert it from a weakness to a
   strength by leading with the status table rather than letting them discover it. Better still,
   borrow two phones and close phase 2E. It's the highest-leverage day of work available to you.
-- **Three-day hackathon timeline.** Some reviewers discount hackathon repos on sight. The
-  `phase/` directory is your counter-evidence: it shows planned, gated, reviewed work with a
-  deviations register, not a weekend sprint.
+- **Three-day hackathon timeline.** Some reviewers discount hackathon repos on sight. Your
+  counter-evidence is the planning trail: gated phases with a deviations register, not a weekend
+  sprint. That trail now lives only in git history (`git show ac2d337:phase/README.md`), which
+  is worth remembering before you rely on it in an interview.
 - **The `DatabaseStore` / SQL schema commit and the "seven panic codes" doc drift.** Small, but
   a careful reviewer *will* find at least one of them and it costs more than fixing them would.
   Fix them.
@@ -587,7 +619,7 @@ web-CRUD-shop portfolio piece, and that's fine; it's aimed at better roles than 
 
 ---
 
-## Appendix — quick reference
+## Appendix A — quick reference
 
 | Thing | Where |
 |---|---|
@@ -600,3 +632,96 @@ web-CRUD-shop portfolio piece, and that's fine; it's aimed at better roles than 
 | Zone resolution / TTL / ring | H3 res 8 / 6 hours / 16 own reports |
 | State directory | `~/.meshnet` (`--home` to override); macOS app library at `~/.reunite/lib` |
 | Run one command to check everything | `./scripts/check.sh` |
+
+---
+
+## Appendix B — the hardware verification ladder
+
+*Preserved from `phase/phase-2e-hardware-verification.md`, deleted in `9da2b70`. This is the
+only part of the phase plan that describes work still to be done, and it is the highest-value
+day of work available to the project. Nothing in it has been carried out.*
+
+**Before changing any BLE code, understand this:** nothing in the test suite touches a radio.
+`crates/meshcore/tests/external_transport.rs` exercises the BLE path through
+`ExternalTransport`, which is a pair of in-memory queues with a `pump()` shuttling frames
+between them. That proves everything *above* the radio is transport-agnostic. It says nothing
+about whether CoreBluetooth and Android's BLE stack interoperate. `swiftc -typecheck` passing
+means the Swift is valid, not that it works.
+
+### Build and install
+
+```bash
+./scripts/build_ffi.sh android      # writes .so into mobile/android/app/src/main/jniLibs
+cd mobile && flutter run -d <android-device>
+```
+
+`jniLibs` is gitignored and starts absent. A plain `flutter build apk` without this step
+produces an app that compiles and then reports *"the mesh core did not start"*. For iOS, see
+§18 — the two manual Xcode steps are not optional.
+
+### The ladder
+
+Both phones: **airplane mode on, Bluetooth on**, app open and **on screen**, within a few
+metres. Run in order and **stop at the first rung that does not happen**. Each rung rules out
+everything above it.
+
+1. **Radio panel.** Networks tab on both phones reads `Bluetooth state: on`, `Connected peers: 0`.
+2. **Android advertises.** `adb logcat -s ReUniteBle` shows `advertising as a mesh node`.
+3. **Android scans.** Same log shows `scanning for mesh peers`, and no `scan failed with code N`.
+4. **Each phone sees the other's advertisement at all.** Install **nRF Connect** on both and
+   filter on `a1b2c3d4-e5f6-7890-1234-56789abcdef0`.
+5. **GATT connects and the service resolves.** Log shows `connecting to <id>`, then
+   `<id> is a mesh peer`.
+6. **A frame crosses.** The peer appears in the Peers list on at least one phone.
+7. **Both directions.** The roles are symmetric by design; verify it, do not assume it.
+8. **A frame larger than one MTU crosses intact** — send a message over 500 bytes, forcing
+   chunking and reassembly.
+
+**Rung 4 matters most.** It is the only test that separates *"the radios cannot see each other"*
+from *"our code cannot see them"*, and those need completely different fixes.
+
+### Diagnosis
+
+| Stops at | Most likely cause | Where to look |
+| :--- | :--- | :--- |
+| 1, says `unknown` for over a second | The platform never pushed a state | `AppDelegate.swift` (`case "state"`), `BleMesh.swift` `onState`, `mesh_service.dart` `case 'radio_state'` |
+| 1, says `off` or `unauthorized` | Genuine — the OS said so; not the app guessing | Phone settings |
+| 1, says `unsupported` on a phone with Bluetooth | `isSupported` is wrong on this device | `MainActivity.kt` / `AppDelegate.swift` |
+| 2, `advertising failed with code N` | 1 = data too large, 2 = too many advertisers, 4 = internal, **5 = no peripheral role on this chipset** | `BleMesh.kt` `startAdvertising`. Code 5 is a hardware limit: that phone can only ever be a central, and two such phones can never find each other. |
+| 3, `scan failed with code 2` | App registration failed — on Android 12+ almost always the *Nearby devices* runtime permission | `AndroidManifest.xml` declares `BLUETOOTH_SCAN` with `neverForLocation`; check it was granted at runtime |
+| 4, nRF Connect sees **neither** | Neither is advertising. Advertising is broken, not discovery. | `BleMesh.kt` `startAdvertising`, `BleMesh.swift` `peripheralManagerDidUpdateState` |
+| 4, nRF Connect sees **both**, app sees neither | Radios are fine; **our scan or filter is wrong** | `BleMesh.kt` `startScanning` (`ScanFilter`), `BleMesh.swift` `scanForPeripherals(withServices:)` |
+| 4, sees Android but not iOS | Classic iOS symptom. Confirm the app is foregrounded. | `BleMesh.swift` `peripheralManagerDidUpdateState` |
+| 5, `connecting to <id>` repeats forever | Connection never completes; check the reconnect throttle is in effect | `BleMesh.swift` `connecting` map; `BleMesh.kt` `connectTo` |
+| 5, `has no mesh service; disconnecting` | Service discovery found the device but not our GATT service | UUIDs must match across `BleMesh.kt`, `BleMesh.swift`, `transport/ble_linux.rs` |
+| 6, connected but no peer appears | Frames cross the radio but do not reach the core | `mesh_service.dart` `case 'frame'`, then `mesh_ble_inject` in `crates/meshffi/src/lib.rs` |
+| 8, short messages work, long ones do not | Chunking or reassembly; the iOS write flow-control path is the suspect | `BleMesh.swift` `pumpWrites` / `pumpNotifications`, `FrameCodec.kt` reassembler |
+
+> **A backgrounded iPhone is invisible to Android by design.** iOS moves 128-bit service UUIDs
+> into the advertisement's *overflow area*, which non-Apple centrals cannot read. Any "it works
+> until I lock the screen" result traces to this. It is an Apple platform constraint, not a bug,
+> and the fix is background modes plus Beacon v1 in manufacturer data — not a change to discovery.
+
+### Then verify the multi-radio and duty-cycle behaviour
+
+- **Both radios at once.** Wi-Fi *and* Bluetooth on, both phones on one hotspot: the peer appears
+  **once**, not twice. Dedupe is by `NodeId` in the router.
+- **One radio down.** Turn Bluetooth off on one phone: it must keep meshing over Wi-Fi and say
+  why Bluetooth is gone. It must **not** show the startup-error screen. Then repeat with Wi-Fi.
+- **The duty cycle eases off.** Leave one phone alone 25 minutes; `adb logcat` should show the
+  cadence drop through `balanced` to `low_power`. Bring the other into range: back to the fast
+  rate within one interval.
+- **An SOS never backs off.** Raise an SOS on the lone phone, wait past 5 minutes, confirm the
+  cadence stays at 3 s.
+- **Measure the battery.** `plan.md` targets **< 5 %/hour idle**. Publish the measured figure
+  even if it misses — the target does not move to meet the measurement. Expect Android and iOS
+  to differ substantially: CoreBluetooth has no scan-mode knob, so only the *window* applies.
+
+### Rules for this work
+
+- **Do not fix by guessing.** Every rung has a log line. If a change is made without a failing
+  rung pointing at it, it is a guess — and guesses in this layer are how the original iOS bug
+  survived from the first commit until it was found by inspection.
+- **Some defects only a running radio will reveal.** Five were found by reading code. Five is
+  what inspection found; it is not necessarily what exists.
+- **Record what you observe**, so the next person does not have to run it again to find out.

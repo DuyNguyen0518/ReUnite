@@ -90,3 +90,9 @@ check that the UI is wired to the core rather than to a stub, which is what Phas
 
 `widget_test.dart` is pure unit tests over the model and configuration layer, and runs
 anywhere.
+
+> **Run the suite once at a time.** Two concurrent `flutter test` invocations against this
+> directory race on the shared `.dart_tool` build output: one fails with *"the file was deleted
+> or moved while the tool was running"*, and the other may run a **stale snapshot** and report
+> results for code that is no longer on disk. If a result contradicts the source in front of
+> you, re-run it alone before believing it.

@@ -384,4 +384,4 @@ Being explicit, because the difference matters if you are testing:
   the App Sandbox so the app can bind a UDP port and load the core from `~/.reunite/lib`.
   This must be revisited before any signed distribution.
 
-See [`phase/phase-2-mobile.md`](../phase/phase-2-mobile.md) for the full remaining scope.
+See [`HANDOVER.md`](HANDOVER.md) §16 for the full remaining scope.

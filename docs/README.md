@@ -16,10 +16,13 @@ Five audiences, five entry points. Start with the row that matches why you are h
 | Path | What it is |
 | :--- | :--- |
 | [`../plan.md`](../plan.md) | The original product and architecture plan. Code comments cite it by section. |
-| [`../phase/`](../phase/) | The build plan, one file per phase, plus the **deviations register** — every place the code deliberately departs from `plan.md`, and why. |
-| [`../phase/phase-2e-hardware-verification.md`](../phase/phase-2e-hardware-verification.md) | Where the project actually is. The only phase that cannot be done from a laptop. |
 | [`../mobile/README.md`](../mobile/README.md) | The Flutter app's own structure and test notes. |
 | [`../web/README.md`](../web/README.md) | The marketing site: map model, heat layer, theming, and the Google Maps key. |
+
+> **The `phase/` directory was removed in `9da2b70`.** It held the build plan, the deviations
+> register and the hardware-verification ladder. The two parts that describe work still to be
+> done are preserved in [HANDOVER.md](HANDOVER.md) — the invariants (§17) and the verification
+> ladder (Appendix B). The rest is history and recoverable with `git show ac2d337:phase/<file>`.
 
 ## One command
 
