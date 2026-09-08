@@ -113,8 +113,8 @@ Link quality is tracked per neighbour as measured RTT; the `rssi` field is carri
 displayed but stays empty on UDP, where there is no radio signal to read. A BLE transport
 fills it in and the ranking in `--peers` starts using it.
 
-`--peers` ranks by GPS distance first, then hops, then latency — the "nearest peers first"
-requirement from [proposal.md](../proposal.md) — with ghosts always below reachable peers.
+`--peers` ranks by GPS distance first, then hops, then latency — "nearest peers first" —
+with ghosts always below reachable peers.
 
 ## Emergency signals
 
@@ -124,9 +124,11 @@ requirement from [proposal.md](../proposal.md) — with ghosts always below reac
   storm. It is isolated from the operating system's emergency-call path by design
   ([plan.md](../plan.md) §3.2) so that testing a mesh can never dial real emergency
   services. Nothing in this codebase may wire it to one.
-* **Pre-canned status.** Seven codes, one byte each (`status.rs`). The English text lives
-  only in the renderer and never travels — that is the point, on a link with a 27-byte
-  budget and a panicking user who should not have to type.
+* **Pre-canned status.** One byte each (`status.rs`). The English text lives only in the
+  renderer and never travels — that is the point, on a link with a 27-byte budget and a
+  panicking user who should not have to type. Eight code points are defined; commit
+  `6eba821` cut the *displayed* table to three (safe, hazard, SOS), and whether that is
+  the right number is still an open product question.
 * **Ghosting.** A contact with no neighbour entry and no route is not deleted; it is shown
   dimmed at its last known GPS fix with the age of that fix. A dead battery must not look
   the same as never having existed.
@@ -348,7 +350,7 @@ Two mechanisms fake radio range:
   addresses you name, which is how [DEMO.md](DEMO.md) builds an A—B—C line inside one
   laptop.
 
-`cargo test` (18 tests) covers the sealed-box exchange, packet signing and tamper
+`cargo test` (38 tests) covers the sealed-box exchange, packet signing and tamper
 rejection, dedupe and route preference, the kick threshold and re-key, persistence across
 restarts, Beacon v1 byte-exact round-trips and its size budget, status-code parsing and
 the absence of human text on the wire, H3 cell snapping, zone votes counting people

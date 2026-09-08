@@ -20,10 +20,21 @@ class BleRadio {
   /// (unlike Android/iOS) cannot advertise itself - see BleMeshCentral.swift.
   static bool get isAvailable => Platform.isAndroid || Platform.isIOS || Platform.isMacOS;
 
+  /// [isAvailable] answers "does this *platform* have a native radio", which is not the
+  /// same question as "is one reachable from this *process*". A `flutter test` host runs
+  /// the Dart with no plugin registrar behind it, so every channel call throws
+  /// `MissingPluginException` on a platform that genuinely does ship a radio.
+  ///
+  /// That is not a `PlatformException` and so was not caught, and it escaped as far as
+  /// `MeshService.init`, which reported it as a failure to start the mesh at all - the
+  /// exact inversion this class exists to prevent. A radio we cannot reach costs that
+  /// radio and nothing else: every method below answers as if the platform had none.
   Future<bool> isSupported() async {
     if (!isAvailable) return false;
     try {
       return await _method.invokeMethod<bool>('isSupported') ?? false;
+    } on MissingPluginException {
+      return false;
     } on PlatformException catch (e) {
       debugPrint('BLE isSupported failed: ${e.message}');
       return false;
@@ -41,6 +52,8 @@ class BleRadio {
     if (!isAvailable) return false;
     try {
       return await _method.invokeMethod<bool>('isEnabled') ?? false;
+    } on MissingPluginException {
+      return false;
     } on PlatformException {
       return false;
     }
@@ -52,6 +65,8 @@ class BleRadio {
     if (!isAvailable) return 'unsupported';
     try {
       return await _method.invokeMethod<String>('state') ?? 'unknown';
+    } on MissingPluginException {
+      return 'unsupported';
     } on PlatformException {
       return 'unknown';
     }
@@ -63,6 +78,8 @@ class BleRadio {
     try {
       await _method.invokeMethod<bool>('start');
       return null;
+    } on MissingPluginException {
+      return 'no Bluetooth plugin is registered in this process';
     } on PlatformException catch (e) {
       return e.message ?? 'could not start Bluetooth';
     }
@@ -72,6 +89,8 @@ class BleRadio {
     if (!isAvailable) return;
     try {
       await _method.invokeMethod<bool>('stop');
+    } on MissingPluginException {
+      // Nothing was ever started; there is nothing to stop.
     } on PlatformException catch (e) {
       debugPrint('BLE stop failed: ${e.message}');
     }
@@ -82,6 +101,8 @@ class BleRadio {
     if (!isAvailable) return 0;
     try {
       return await _method.invokeMethod<int>('connectedCount') ?? 0;
+    } on MissingPluginException {
+      return 0;
     } on PlatformException {
       return 0;
     }
@@ -93,6 +114,8 @@ class BleRadio {
     if (!isAvailable) return 0;
     try {
       return await _method.invokeMethod<int>('send', {'frame': frameHex, 'to': to}) ?? 0;
+    } on MissingPluginException {
+      return 0;
     } on PlatformException catch (e) {
       debugPrint('BLE send failed: ${e.message}');
       return 0;
@@ -116,6 +139,8 @@ class BleRadio {
         'windowMs': windowMs,
         'periodMs': periodMs,
       });
+    } on MissingPluginException {
+      // No radio in this process, so there is no cadence to set.
     } on PlatformException catch (e) {
       debugPrint('BLE setCadence failed: ${e.message}');
     }

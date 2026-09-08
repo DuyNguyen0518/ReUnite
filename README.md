@@ -134,12 +134,36 @@ Useful terminal commands once started:
 
 ## 🧪 Testing & Verification
 
-ReUnite includes full automated unit and integration tests across both Rust engine and Flutter frontend:
+ReUnite includes automated unit and integration tests across both the Rust engine and the
+Flutter frontend — **38 Rust tests and 24 Dart tests**. The Dart tests are not mocked: they
+load the same native library the shipped app loads and drive a real Rust mesh node over FFI.
 
 ```bash
 # Run the complete automated check suite
-./scripts/check.sh
+./scripts/check.sh          # cargo test + cargo build --release + flutter analyze + flutter test
 ```
+
+> **What has and has not been verified.** Everything above runs on a laptop. Two devices
+> meshing over an actual Bluetooth radio has **not** been tested — the BLE code is exercised
+> only through an in-memory transport. See
+> [`phase/phase-2e-hardware-verification.md`](phase/phase-2e-hardware-verification.md) for the
+> hardware verification ladder that closes this out.
+
+---
+
+## 📚 Documentation
+
+| Document | What it covers |
+| :--- | :--- |
+| [docs/](docs/README.md) | Index of everything below |
+| [docs/JOINING.md](docs/JOINING.md) | Using the app — no terminal, no account |
+| [docs/SETUP.md](docs/SETUP.md) | Running the mesh across several computers |
+| [docs/MOBILE.md](docs/MOBILE.md) | Building for Android, iOS and macOS |
+| [docs/DEMO.md](docs/DEMO.md) | A scripted walkthrough of every feature |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Wire formats, routing, crypto, and the threat model |
+| [docs/HANDOVER.md](docs/HANDOVER.md) | The whole project in one document, for a new maintainer |
+| [phase/](phase/README.md) | The build plan and the deviations register |
+| [plan.md](plan.md) | The original product and architecture plan |
 
 ---
 

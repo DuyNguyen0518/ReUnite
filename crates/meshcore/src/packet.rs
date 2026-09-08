@@ -1,11 +1,12 @@
 //! Wire format.
 //!
 //! Two layers:
-//!   * `Frame`  - what actually goes into one datagram / BLE write. It names the *link*
-//!                sender (our direct neighbour) and carries exactly one `Packet`.
-//!   * `Packet` - the end-to-end unit that is flooded or routed across the mesh. It is
-//!                signed by its origin and carries TTL + path for loop-free forwarding
-//!                (plan.md §6.2 "Mesh Network Flooding").
+//!
+//! * `Frame`  - what actually goes into one datagram / BLE write. It names the *link*
+//!   sender (our direct neighbour) and carries exactly one `Packet`.
+//! * `Packet` - the end-to-end unit that is flooded or routed across the mesh. It is
+//!   signed by its origin and carries TTL + path for loop-free forwarding
+//!   (plan.md §6.2 "Mesh Network Flooding").
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};

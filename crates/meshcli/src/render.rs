@@ -80,7 +80,7 @@ pub fn event_line(style: &Style, event: &Event, now_ms: u64) -> String {
             style.dim(&hhmmss(now_ms)),
             style.cyan(&format!("[{network}]")),
             style.bold(from),
-            format!("{text} {}", style.dim(&format!("({hops}h)")))
+            format_args!("{text} {}", style.dim(&format!("({hops}h)")))
         ),
         Event::Direct {
             network,
@@ -94,7 +94,7 @@ pub fn event_line(style: &Style, event: &Event, now_ms: u64) -> String {
             style.cyan(&format!("[{network}]")),
             style.magenta("(direct)"),
             style.bold(from),
-            format!("{text} {}", style.dim(&format!("({hops}h)")))
+            format_args!("{text} {}", style.dim(&format!("({hops}h)")))
         ),
         Event::PeerJoined { id, display } => style.green(&format!(
             "+ peer {display} ({}) is in range",
@@ -309,7 +309,11 @@ pub fn status_table(style: &Style) -> String {
         out.push_str(&format!("  {}  {:<10} {}\n", s.code, s.name, s.text));
     }
     out.push_str(&style.dim("  0  none       clear your status\n"));
-    out.push_str(&style.dim("usage: --status medical   (or --status 2)"));
+    // The example has to name a code that is actually in `TABLE`. It used to say
+    // `medical`, which was cut from the table in the three-status simplification and has
+    // been rejected by the parser ever since - a usage line telling you to type something
+    // the tool refuses.
+    out.push_str(&style.dim("usage: --status safe   (or --status 1)"));
     out
 }
 

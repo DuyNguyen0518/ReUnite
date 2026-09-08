@@ -172,7 +172,7 @@ fn the_bridge_starts_a_node_and_answers_every_ui_command() {
     let first = &queued[0];
     assert!(first["to"].is_null(), "a beacon is a broadcast, so it names no device");
     let frame_hex = first["frame"].as_str().unwrap();
-    assert!(!frame_hex.is_empty() && frame_hex.len() % 2 == 0, "frame is hex");
+    assert!(!frame_hex.is_empty() && frame_hex.len().is_multiple_of(2), "frame is hex");
 
     // Feeding a frame back in is what the Kotlin/Swift layer does on every BLE receive.
     // Our own frame is rejected upstream as a self-echo, which is correct: the point

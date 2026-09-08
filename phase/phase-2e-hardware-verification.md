@@ -32,8 +32,8 @@ register.
 
 | Layer | Status |
 | :--- | :--- |
-| Rust core: routing, crypto, zones, duty cycle | **built and tested**, 34 tests |
-| Flutter UI on the real core over FFI | **built and tested**, 17 tests |
+| Rust core: routing, crypto, zones, duty cycle | **built and tested**, 38 tests |
+| Flutter UI on the real core over FFI | **built and tested**, 24 tests |
 | Two nodes meshing over an in-memory transport | **tested** (`external_transport.rs`) |
 | Two nodes meshing over an actual Bluetooth radio | **never once attempted** |
 

@@ -252,30 +252,31 @@ Phase 2.
 ## 8. Pre-canned panic messages
 
 A frightened person should not have to type, and the radio budget does not stretch to
-prose. Seven common things travel as **one byte**:
+prose. The common things travel as **one byte**:
 
 ```
 [default] > --status
 pre-canned status messages - one byte on the wire
-  1  safe       I am safe
-  2  medical    Need medical help
-  3  supplies   Need water / food
-  4  trapped    Trapped - need rescue
-  5  moving     Moving to a safe zone
-  6  shelter    Shelter here, space available
-  7  hazard     Route blocked / hazard
+  1  safe       🟢 Safe & Moving
+  7  hazard     ⚠️ Hazard / Danger Spot
+  2  sos        🚨 SOS Emergency
   0  none       clear your status
-usage: --status medical   (or --status 2)
+usage: --status safe   (or --status 1)
 
-[default] > --status medical
-[default] status: Need medical help (1 byte, code 2)
+[default] > --status safe
+[default] status: 🟢 Safe & Moving (1 byte, code 1)
 ```
 
 Everyone else sees the words, reconstructed locally:
 
 ```
-* ~bob: Need medical help
+* ~bob: 🟢 Safe & Moving
 ```
+
+> The wire format has eight code points (`status.rs`), but commit `6eba821` cut the
+> displayed table to the three above. Whether three or seven is the right number is an
+> open product question - see `phase/phase-2a-build-and-display-integrity.md`. The codes
+> not in the table still travel and still decode; they just have no name to type.
 
 The status also rides every `Hello`, so a node that arrives ten minutes later still learns
 it instead of having missed the one broadcast.

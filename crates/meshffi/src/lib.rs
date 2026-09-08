@@ -462,11 +462,10 @@ pub extern "C" fn mesh_stop() -> bool {
     };
     match taken {
         Some(b) => {
-            match Arc::try_unwrap(b) {
-                Ok(owned) => owned.runtime.shutdown_background(),
-                // Another thread is mid-call; dropping our reference is enough, and the
-                // node dies with the last one.
-                Err(_) => {}
+            // On the Err arm another thread is mid-call; dropping our reference is
+            // enough, and the node dies with the last one.
+            if let Ok(owned) = Arc::try_unwrap(b) {
+                owned.runtime.shutdown_background();
             }
             true
         }
