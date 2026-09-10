@@ -360,14 +360,17 @@ through, because every node forwards for its neighbours.
 
 Being explicit, because the difference matters if you are testing:
 
-* **Bluetooth is written but has not been run on real phones.** The Kotlin and Swift
-  radios compile and the whole stack above them is tested — including two complete nodes
-  meshing over a transport with no networking in it — but no physical phone-to-phone test
-  has been done here, because no device was available. Treat §3.5 as the first real test
-  of it rather than as a guarantee.
-* **iOS needs the two manual Xcode steps in §3**, and they have not been performed here
-  either. Without them Dart cannot find the core's symbols and the app shows the
-  "mesh core did not start" screen.
+* **Bluetooth has been run on real phones.** A September 2026 demo meshed **five phones in
+  airplane mode plus a Linux laptop** over BLE and relayed messages multi-hop, so the Kotlin
+  and Swift radios are exercised by real hardware and not only by the in-memory transport the
+  automated suite uses. §3.5 is therefore a repeat of a known-good test rather than a first
+  attempt — but treat your own hardware as its own variable: chipsets differ, and advertising
+  failure code 5 means the chipset has no peripheral role at all (HANDOVER Appendix B has the
+  diagnosis table).
+* **iOS needs the two manual Xcode steps in §3.** They were carried out on a real iPhone for
+  the September 2026 demo, so the procedure below is known to work — but it is per-checkout and
+  per-machine, so you will still have to do it yourself. Without those steps Dart cannot find
+  the core's symbols and the app shows the "mesh core did not start" screen.
 * **RSSI is now plumbed**, so the peers list ranks by real signal strength on Bluetooth.
   It has no source on Wi-Fi and stays blank there — Wi-Fi RSSI belongs to the
   association, not to a peer.

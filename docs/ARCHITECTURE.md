@@ -19,7 +19,8 @@ crates/meshcore
       identity.rs   persistent UUID -> node id + keys
       store.rs      identity.json, contacts.json, networks.json, zones.json, messages/*.jsonl
       duty.rs       how hard to beacon and scan, given how alone we are
-      transport/    the radio seam: udp.rs, external.rs (native BLE), multi.rs (all at once)
+      transport/    the radio seam: udp.rs, external.rs (native BLE),
+                    ble_linux.rs (BlueZ via bluer), multi.rs (all at once)
 ```
 
 `meshcore` has no terminal code in it and `meshcli` has no protocol code in it. That
@@ -307,7 +308,7 @@ Honest limits of the MVP:
   delivery); a captured packet can be replayed to members until they forget the epoch.
 * **The `[default]` network is public.** By design.
 
-## Transports, and why not BLE
+## Transports, and which platforms get a radio
 
 The `Transport` trait is three methods: `send_broadcast`, `send_to`, `recv`. Everything
 above it is radio-agnostic.
@@ -318,14 +319,25 @@ from (so a single successful frame keeps a link alive even where multicast is fi
 and any `--peer` seeds.
 
 [plan.md](../plan.md) proposed BLE via `btleplug` for Phase 1. That is not buildable on
-laptops: `btleplug` and its peers implement the BLE **central** role only — scanning and
-connecting. Advertising as a **peripheral**, which every node must do to be discoverable,
-is not exposed portably on macOS or Windows from userspace. A laptop mesh over BLE cannot
-be assembled from the available libraries; a Wi-Fi mesh can, needs no infrastructure or
-internet, and exercises exactly the same routing, crypto and CLI. So the MVP proves the
-concept over UDP and leaves the radio swappable.
+*every* laptop: `btleplug` and its peers implement the BLE **central** role only — scanning
+and connecting. Advertising as a **peripheral**, which every node must do to be discoverable,
+is not exposed portably on macOS or Windows from userspace. So Phase 1 proved the concept over
+UDP — which needs no infrastructure or internet and exercises exactly the same routing, crypto
+and CLI — and left the radio swappable behind the trait.
 
-For Phase 2 that means:
+Where the platforms actually landed:
+
+| Platform | Radio | Why |
+| :--- | :--- | :--- |
+| Android | BLE — advertise, GATT server, scan (Kotlin) | Full peripheral and central roles |
+| iOS | BLE — CoreBluetooth (Swift) | Peripheral role available; no scan-mode or advertising-interval control |
+| Linux | BLE — `ble_linux.rs` via `bluer` | BlueZ exposes the peripheral role, so a laptop is a full radio node, not just a Wi-Fi relay |
+| macOS / Windows | UDP over Wi-Fi | No portable userspace peripheral role — degrades to a different radio rather than dropping out |
+
+That table is the demonstrated arrangement, not a plan: a September 2026 demo meshed five
+phones in airplane mode with a Linux laptop over BLE, relaying multi-hop.
+
+Phase 2's plan for each, most of which is now built:
 
 * **Android** — Wi-Fi Aware / Wi-Fi Direct for bulk, BLE advertise+scan for discovery.
 * **iOS** — Multipeer Connectivity, or CoreBluetooth peripheral + central.

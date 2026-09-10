@@ -316,7 +316,11 @@ unusually good — it explains the heatmap lobe-hashing and the zoom re-pegging 
 | `flutter analyze` | ✅ **No issues found** |
 | `flutter test` (24 tests) | ✅ **24 passed, 0 failed** (was 14 passed, 10 failed — fixed, below) |
 | `./scripts/check.sh` | ✅ **all checks passed** |
-| Two nodes meshing over an actual Bluetooth radio | ⚠️ **never once attempted, by anyone** |
+| Six nodes meshing over an actual Bluetooth radio | ✅ **demonstrated** — 5 phones in airplane mode + 1 Linux laptop, multi-hop relay (Sept 2026) |
+
+The Bluetooth row is the one entry above that was not produced by a command on this machine:
+it records a live demo on real devices (§16.2), not a repeatable local check. Everything else
+is a check you can re-run yourself in a few minutes.
 
 **The Dart suite was red when this document was first written; it has since been fixed.**
 Recorded here because the cause is instructive. Every failure was:
@@ -351,16 +355,24 @@ again.
 
 ### 16. Known gaps, drift and honest limits
 
-Ranked by what I'd fix first. Items 1–4 are the project's real frontier; the security list is
-already documented candidly in `docs/ARCHITECTURE.md`, which is to the original author's credit.
+Ranked by what I'd fix first. Items 3 and 4 are now the project's real frontier — 1 and 2 have
+since been closed. The security list is already documented candidly in
+`docs/ARCHITECTURE.md`, which is to the original author's credit.
 
 1. ~~**The Dart test suite is red.**~~ **Fixed** — see §15.
-2. **Bluetooth has never been run on real hardware.** Every claim about BLE behaviour in this
-   project was established by *reading code*. `external_transport.rs` proves the layers above the radio are
-   transport-agnostic — it is a pair of in-memory queues and touches no radio.
-   **Appendix B** is a stop-at-first-failure ladder with a diagnosis table; follow it exactly
-   when you get two phones. **This is the single highest-value thing you can do to this
-   project.**
+2. ~~**Bluetooth has never been run on real hardware.**~~ **Done** — a September 2026 demo put
+   **five phones in airplane mode and one Linux laptop** on the mesh over BLE, relaying messages
+   multi-hop with no cell service, Wi-Fi or internet available to any of them. That closes what
+   was the project's largest unknown, and it validates the transport seam across Android, iOS
+   and Linux simultaneously rather than one platform at a time.
+
+   **What remains is evidence, not function.** There is no recording, log or dated write-up of
+   the run, so the strongest result in the project currently rests on memory. And
+   `external_transport.rs` is still a pair of in-memory queues that touches no radio, so the
+   automated suite continues to test everything *above* the radio rather than the radio itself —
+   keep that distinction when describing what is covered. Capture a video, and record the
+   topology, hop count and range while the setup is still reproducible. **Appendix B** remains
+   the procedure to repeat it against new hardware.
 3. **The mesh stops when the app leaves the screen.** No Android foreground service, no iOS
    state restoration. This is the largest gap between this and something usable in a real
    emergency.
@@ -480,7 +492,7 @@ startup-error screen. `scripts/build_ffi.sh` prints this reminder; `docs/MOBILE.
 | 1 | ~~Fix the `MissingPluginException`~~ — already done; the suite is green. Verify with `./scripts/check.sh`. |
 | 2 | Run `docs/DEMO.md` end to end on one laptop — three nodes, multi-hop relay, a private network the relay can't read, kick voting, ghosting, zones. This is the fastest way to *feel* the protocol. |
 | 3 | Add CI (GitHub Actions: `cargo test`, `cargo build --release`, `cargo clippy -- -D warnings`, `flutter analyze --fatal-warnings`, `flutter test`). The green-suite claim went stale in a merge; CI is why that stops happening. **Give the Dart job its own checkout and never run two `flutter test` jobs against one working tree** — see §16.12. |
-| 4–5 | **Two phones.** Walk the ladder in Appendix B rung by rung. Write down what you actually observe, whatever it is — a measured failure is worth more than an untested assumption. |
+| 4–5 | **Get the hardware run on the record.** The Sept 2026 demo (5 phones in airplane mode + a Linux laptop, multi-hop over BLE) was never written up or filmed. Repeat it against Appendix B rung by rung, capture a video, and note topology, hop count and range. Write down what you actually observe, whatever it is — a measured failure is worth more than a remembered success. |
 | Then | Background execution (Android foreground service + iOS state restoration). It's the difference between a demo and a usable tool. |
 
 Then, and only then, Beacon v1 on the air — and read the security constraint in phase 2C.4
@@ -522,11 +534,16 @@ repo you link is under your own name. Keep the upstream link and the team credit
    the worst possible first impression.
 2. A CI badge. It's the cheapest credibility signal on GitHub.
 3. **A 30–60 second demo GIF at the top of the README.** This project's biggest problem as a
-   portfolio piece is that nobody can run it — it needs two devices and a native toolchain.
+   portfolio piece is that nobody can run it — it needs several devices and a native toolchain.
    A terminal recording of three nodes relaying a message with the middle node dropping out is
    *reproducible on one laptop* and shows the protocol working. Record it with `asciinema` or a
-   screen capture from `docs/DEMO.md`. If you get two phones, a video of a real SOS crossing
-   Bluetooth in airplane mode is worth more than everything else on this list combined.
+   screen capture from `docs/DEMO.md`.
+
+   **Higher value still, and currently missing: film the hardware.** The mesh has already run on
+   five phones in airplane mode plus a laptop (§16.2) and nobody recorded it. A video of a real
+   SOS crossing Bluetooth with every device in airplane mode is worth more than everything else
+   on this list combined — and unlike the rest of this list, it needs the devices back in one
+   room, so do it at the first opportunity rather than the last.
 4. A **status section** in the README, above the fold: what's built and tested, what's built and
    unverified, what's not built. You already have this material — it's §15 and §16 of this
    document. Moving an honest status table to the front converts your biggest weakness (nothing
@@ -592,16 +609,18 @@ They will not evaluate the code. What helps here is the tagline, the demo GIF, a
 
 | Their question | Your answer |
 |---|---|
-| "Has this ever run on real hardware?" | "The Rust core and the UI are tested end to end over an in-memory transport, 38 + 24 tests. Bluetooth between two phones has never been run — I wrote the verification ladder for it and it's the next thing I'd do. Everything I claim about BLE behaviour is inspection, and I've labelled it as such in the repo." **Never bluff this one.** The honest answer is stronger than the bluff, and the repo already tells the truth in writing. |
+| "Has this ever run on real hardware?" | **Yes — lead with it.** "Six nodes: five phones in airplane mode and a Linux laptop, meshing over Bluetooth and relaying multi-hop, with no cell service, Wi-Fi or internet. macOS and Windows can't advertise as BLE peripherals from userspace, so those join over Wi-Fi instead — which is exactly why the radio sits behind a three-method transport trait." Then keep the boundary crisp: the 38 + 24 automated tests exercise BLE through an **in-memory** transport, so cite the demo and the suites as two *different kinds* of evidence and never let the answer imply the tests drive a radio. The remaining honest gap is that the demo was not recorded — say so if pressed. |
 | "Three days and 14k lines — how much of this is yours, and how much is generated?" | Expect this. Answer directly, name the six commits, and be ready to explain any file on screen. The best defence is being able to derive the 27-byte beacon budget or the kick threshold live. If AI tooling was involved, say so plainly — that's now unremarkable; being unable to explain your own code is what isn't. |
 | "Why is this Wi-Fi if it's a Bluetooth mesh?" | §12. The `btleplug` peripheral-role answer is a good one and shows you hit a real platform limit and routed around it without abandoning the abstraction. |
 | "What would you do differently?" | Have three ready. Mine: hardware-in-the-loop from day one instead of at the end; CI from the first commit (the test suite went red in a merge and nobody noticed); and either build SQLite properly or don't ship a `DatabaseStore` facade that implies it. |
 
 *What will count against it, and what to do:*
 
-- **Nothing has been verified on a radio.** Unavoidable — but you convert it from a weakness to a
-  strength by leading with the status table rather than letting them discover it. Better still,
-  borrow two phones and close phase 2E. It's the highest-leverage day of work available to you.
+- **The radio result is real but undocumented.** Phase 2E is closed — five phones in airplane
+  mode and a Linux laptop meshed over BLE and relayed multi-hop (§16.2) — but there is no video,
+  log or dated write-up, so the project's strongest claim rests on your word alone. Lead with the
+  status table, which now reports a success rather than a gap, and get the run on the record:
+  that is the highest-leverage hour of work available to you.
 - **Three-day hackathon timeline.** Some reviewers discount hackathon repos on sight. Your
   counter-evidence is the planning trail: gated phases with a deviations register, not a weekend
   sprint. That trail now lives only in git history (`git show ac2d337:phase/README.md`), which
@@ -637,9 +656,11 @@ web-CRUD-shop portfolio piece, and that's fine; it's aimed at better roles than 
 
 ## Appendix B — the hardware verification ladder
 
-*Preserved from `phase/phase-2e-hardware-verification.md`, deleted in `9da2b70`. This is the
-only part of the phase plan that describes work still to be done, and it is the highest-value
-day of work available to the project. Nothing in it has been carried out.*
+*Preserved from `phase/phase-2e-hardware-verification.md`, deleted in `9da2b70`. **This ladder
+has now been climbed** — a September 2026 demo ran five phones in airplane mode and a Linux
+laptop on one BLE mesh, relaying multi-hop. Keep it as the repeatable procedure: for new
+hardware, unfamiliar chipsets, and regression-testing any change to the radio code. Record your
+results against it rather than treating it as unattempted work.*
 
 **Before changing any BLE code, understand this:** nothing in the test suite touches a radio.
 `crates/meshcore/tests/external_transport.rs` exercises the BLE path through

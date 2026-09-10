@@ -143,11 +143,17 @@ load the same native library the shipped app loads and drive a real Rust mesh no
 ./scripts/check.sh          # cargo test + cargo build --release + flutter analyze + flutter test
 ```
 
-> **What has and has not been verified.** Everything above runs on a laptop. Two devices
-> meshing over an actual Bluetooth radio has **not** been tested — the BLE code is exercised
-> only through an in-memory transport. See
+> **What has and has not been verified.** The mesh has been demonstrated on real hardware:
+> **six nodes — five phones in airplane mode plus a Linux laptop — meshing over Bluetooth LE
+> and relaying messages multi-hop**, with no cell service, no Wi-Fi and no internet available to
+> any of them (September 2026).
+>
+> The automated suites are a different kind of evidence, and the two are worth keeping apart:
+> they exercise the BLE path through an in-memory transport, so they test everything *above* the
+> radio rather than the radio itself. macOS and Windows laptops cannot advertise as BLE
+> peripherals from userspace and join over Wi-Fi instead; Linux can, via `bluer`. See
 > [Appendix B of docs/HANDOVER.md](docs/HANDOVER.md#appendix-b--the-hardware-verification-ladder)
-> for the verification ladder that closes this out.
+> for the ladder that demo followed, and re-run it against any new hardware.
 
 ---
 
